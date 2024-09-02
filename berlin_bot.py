@@ -42,26 +42,6 @@ class BerlinBot:
     def __init__(self):
         self.wait_time = 3
         self._sound_file = os.path.join(os.getcwd(), "alarm.wav")
-        self.people_queue = [
-            {"name": "Statnik, Illia", "index": 57},
-            {"name": "Buiankova, Maiia", "index": 12},
-            {"name": "Ahmadi, Ezatullah", "index": 2},
-            {"name": "Arkadev, Sergei", "index": 3},
-            {"name": "Astasov, Ilja", "index": 4},
-            {"name": "Bakulin, Efim", "index": 6},
-            {"name": "Bindernagel, Dennis Erich", "index": 9},
-            {"name": "Bischoff, Mandy", "index": 10},
-            {"name": "Gellert, Daniel", "index": 17},
-            {"name": "Hryhorieva, Iryna", "index": 23},
-            {"name": "Konitzko, Vanessa Nadine", "index": 29},
-            {"name": "Kortzer, Miriam Jasmina", "index": 32},
-            {"name": "Lukashchuk, Viacheslav", "index": 37},
-            {"name": "Murtaj, Lennart", "index": 40},
-            {"name": "Neagus, Natalia", "index": 41},
-            {"name": "Popovicenco, Vladislav", "index": 47},
-            {"name": "Rinas, Erika", "index": 50},
-            {"name": "Turaeva, Nargis Niyozmahmadovna", "index": 60},
-        ]
 
     @staticmethod
     def visit_start_page(driver: webdriver.Edge):
@@ -109,7 +89,7 @@ class BerlinBot:
     @staticmethod
     def the_next_week(driver: webdriver.Edge):
         logging.info("Selecting next week")
-        for _ in range(4):
+        for _ in range(3):
             next_week_button = WebDriverWait(driver, 3).until(
                 EC.element_to_be_clickable((By.XPATH, '//*[@id="scheduling-calendar-form"]/div/div[3]'))
             )
@@ -129,7 +109,7 @@ class BerlinBot:
     def select_place(driver: webdriver.Edge):
         logging.info("Selecting place")
         place_option = WebDriverWait(driver, 3).until(
-            EC.element_to_be_clickable((By.XPATH, '//*[@id="scheduling-panel-form:j_idt55_3"]'))
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="scheduling-panel-form:j_idt55_12"]'))
         )
         place_option.click()
         time.sleep(1)
@@ -145,29 +125,42 @@ class BerlinBot:
         except:
             return []
 
-    @staticmethod
-    def choose_person(driver: webdriver.Edge, person_index):
-        logging.info(f"Selecting person with index {person_index}")
-        person_dropdown = WebDriverWait(driver, 3).until(
+    def select_applicant(self, driver: webdriver.Edge, person_index: int):
+        logging.info(f"Selecting applicant with index {person_index}")
+        applicant_dropdown = WebDriverWait(driver, 3).until(
             EC.element_to_be_clickable((By.XPATH, '//*[@id="j_idt196:j_idt245"]'))
         )
-        person_dropdown.click()
+        applicant_dropdown.click()
         time.sleep(1)
-        person_option = WebDriverWait(driver, 3).until(
+        applicant_option = WebDriverWait(driver, 3).until(
             EC.element_to_be_clickable((By.XPATH, f'//*[@id="j_idt196:j_idt245_{person_index}"]'))
         )
-        person_option.click()
+        applicant_option.click()
+        time.sleep(1)
 
-    def create_termin(self, driver: webdriver.Edge, place: str, person: str):
-        logging.info("Creating termin")
-        create_button = WebDriverWait(driver, 3).until(
-            EC.element_to_be_clickable((By.XPATH, '//*[@id="j_idt196:j_idt275"]'))
-        )
-        create_button.click()
-        logging.info("Termin created successfully")
-        
-        self.play_sound_for_duration(self._sound_file, 2)
-        logging.info(f"Termin created at {place} for {person}")
+    def create_termin(self, driver: webdriver.Edge, place: str, person_index: int):
+        while True:
+            logging.info(f"Creating termin for person with index {person_index}")
+            create_button = WebDriverWait(driver, 3).until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="j_idt196:j_idt275"]'))
+            )
+            create_button.click()
+            time.sleep(2)
+
+            try:
+                error_block = driver.find_element(By.CLASS_NAME, "error-block")
+                if error_block.is_displayed():
+                    logging.error(f"Error encountered during termin creation for person with index {person_index}.")
+
+                    logging.info(f"Selecting next person due to error.")
+                    person_index += 1
+                    self.select_applicant(driver, person_index)
+
+                    continue  
+            except:
+                logging.info(f"Termin created successfully for person with index {person_index}.")
+                self.play_sound_for_duration(self._sound_file, 1)
+                return True 
 
     @staticmethod
     def play_sound_for_duration(sound_file: str, duration: int):
@@ -177,7 +170,7 @@ class BerlinBot:
         
         sound_thread = threading.Thread(target=play_sound)
         sound_thread.start()
-        time.sleep(duration)
+        time.sleep(1)
         
         winsound.PlaySound(None, winsound.SND_PURGE)
 
@@ -192,17 +185,28 @@ class BerlinBot:
             self.select_place(driver)
             self.the_next_week(driver)
 
-            for person in self.people_queue:
+            person_index = 1
+            while person_index <= 100:
                 slots = self.select_termin(driver)
                 if not slots:
                     logging.info("No slots available. Ending process.")
                     return 
-                
+
                 slots[0].click()
-                self.choose_person(driver, person['index'])
-                self.create_termin(driver, place="Berlin", person=person['name'])
-                # Переходимо до наступного учасника
-                logging.info(f"Moving to next person in queue.")
+
+                self.select_applicant(driver, person_index)
+                success = self.create_termin(driver, place="Berlin", person_index=person_index)
+
+                if success:
+                    logging.info(f"Termin created. Moving to next person in queue.")
+                else:
+                    logging.warning(f"Failed to create termin for person with index {person_index}.")
+
+                person_index += 1 
+
+                if person_index > 80: 
+                    logging.info("All persons tried. Ending process.")
+                    return 
 
 if __name__ == "__main__":
     bot = BerlinBot()
