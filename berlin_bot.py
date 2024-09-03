@@ -125,42 +125,42 @@ class BerlinBot:
         except:
             return []
 
-    def select_applicant(self, driver: webdriver.Edge, person_index: int):
-        logging.info(f"Selecting applicant with index {person_index}")
-        applicant_dropdown = WebDriverWait(driver, 3).until(
-            EC.element_to_be_clickable((By.XPATH, '//*[@id="j_idt196:j_idt245"]'))
-        )
-        applicant_dropdown.click()
-        time.sleep(1)
-        applicant_option = WebDriverWait(driver, 3).until(
-            EC.element_to_be_clickable((By.XPATH, f'//*[@id="j_idt196:j_idt245_{person_index}"]'))
-        )
-        applicant_option.click()
-        time.sleep(1)
+    # def select_applicant(self, driver: webdriver.Edge, person_index: int):
+    #     logging.info(f"Selecting applicant with index {person_index}")
+    #     applicant_dropdown = WebDriverWait(driver, 3).until(
+    #         EC.element_to_be_clickable((By.XPATH, '//*[@id="j_idt196:j_idt245"]'))
+    #     )
+    #     applicant_dropdown.click()
+    #     time.sleep(1)
+    #     applicant_option = WebDriverWait(driver, 3).until(
+    #         EC.element_to_be_clickable((By.XPATH, f'//*[@id="j_idt196:j_idt245_{person_index}"]'))
+    #     )
+    #     applicant_option.click()
+    #     time.sleep(1)
 
     def create_termin(self, driver: webdriver.Edge, place: str, person_index: int):
         while True:
-            logging.info(f"Creating termin for person with index {person_index}")
+            logging.info(f"Creating termin for person")
             create_button = WebDriverWait(driver, 3).until(
                 EC.element_to_be_clickable((By.XPATH, '//*[@id="j_idt196:j_idt275"]'))
             )
             create_button.click()
             time.sleep(2)
 
-            try:
-                error_block = driver.find_element(By.CLASS_NAME, "error-block")
-                if error_block.is_displayed():
-                    logging.error(f"Error encountered during termin creation for person with index {person_index}.")
+            # try:
+            #     error_block = driver.find_element(By.CLASS_NAME, "error-block")
+            #     if error_block.is_displayed():
+            #         logging.error(f"Error encountered during termin creation for person with index {person_index}.")
 
-                    logging.info(f"Selecting next person due to error.")
-                    person_index += 1
-                    self.select_applicant(driver, person_index)
+            #         logging.info(f"Selecting next person due to error.")
+            #         person_index += 1
+            #         self.select_applicant(driver, person_index)
 
-                    continue  
-            except:
-                logging.info(f"Termin created successfully for person with index {person_index}.")
-                self.play_sound_for_duration(self._sound_file, 1)
-                return True 
+            #         continue  
+            # except:
+            # logging.info(f"Termin created successfully for person with index {person_index}.")
+            # self.play_sound_for_duration(self._sound_file, 1)
+            # return True 
 
     @staticmethod
     def play_sound_for_duration(sound_file: str, duration: int):
@@ -185,28 +185,29 @@ class BerlinBot:
             self.select_place(driver)
             self.the_next_week(driver)
 
-            person_index = 1
-            while person_index <= 100:
-                slots = self.select_termin(driver)
-                if not slots:
-                    logging.info("No slots available. Ending process.")
-                    return 
+            # person_index = 1
+            # while person_index <= 100:
+            slots = self.select_termin(driver)
+            if not slots:
+                logging.info("No slots available. Ending process.")
+                return 
 
-                slots[0].click()
+            slots[0].click()
 
-                self.select_applicant(driver, person_index)
-                success = self.create_termin(driver, place="Berlin", person_index=person_index)
+                # self.select_applicant(driver, person_index)
+            # success = self.create_termin(driver, place="Berlin", person_index=person_index)
+            success = self.create_termin(driver, place="Berlin")
 
-                if success:
-                    logging.info(f"Termin created. Moving to next person in queue.")
-                else:
-                    logging.warning(f"Failed to create termin for person with index {person_index}.")
+            if success:
+                logging.info(f"Termin created. Moving to next person in queue.")
+            else:
+                logging.warning(f"Failed to create termin for person")
 
-                person_index += 1 
+            # person_index += 1 
 
-                if person_index > 80: 
-                    logging.info("All persons tried. Ending process.")
-                    return 
+                # if person_index > 80: 
+                #     logging.info("All persons tried. Ending process.")
+                #     return 
 
 if __name__ == "__main__":
     bot = BerlinBot()
